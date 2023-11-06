@@ -4,6 +4,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <condition_variable>
 
 template <typename T>
 class threadsafe_queue
@@ -19,8 +20,11 @@ public:
 
     void push(T new_value)
     {
+        std::shared_ptr<T> data{
+            std::make_shared<T>(std::move(new_value))
+        };
         std::lock_guard lock{_mutex};
-        _data_queue.push(std::move(new_value));
+        _data_queue.push(data);
         _data_cond.notify_one();
     }
 
@@ -30,7 +34,7 @@ public:
         _data_cond.wait(lock, [this]
                         { return _close || !_data_queue.empty(); });
         if (_close) { return; }
-        value = std::move(_data_queue.front());
+        value = std::move(*_data_queue.front());
         _data_queue.pop();
     }
 
@@ -40,7 +44,7 @@ public:
         _data_cond.wait(lock, [this]
                         { return _close || !_data_queue.empty(); });
         if (_close) { return {}; }
-        std::shared_ptr<T> value{std::make_shared<T>(std::move(_data_queue.front()))};
+        auto value = _data_queue.front();
         _data_queue.pop();
         return value;
     }
@@ -48,11 +52,10 @@ public:
     bool try_pop(T &value)
     {
         std::lock_guard lock{_mutex};
-        if (_data_queue.empty())
-        {
+        if (_data_queue.empty()) {
             return false;
         }
-        value = std::move(_data_queue.front());
+        value = std::move(*_data_queue.front());
         _data_queue.pop();
         return true;
     }
@@ -60,12 +63,10 @@ public:
     std::shared_ptr<T> try_pop()
     {
         std::lock_guard lock{_mutex};
-        if (_data_queue.empty())
-        {
+        if (_data_queue.empty()) {
             return {};
         }
-        std::shared_ptr<T> value{
-            std::make_shared<T>(std::move(_data_queue.front()))};
+        auto value = _data_queue.front();
         _data_queue.pop();
         return value;
     }
@@ -78,7 +79,7 @@ public:
 
 private:
     mutable std::mutex _mutex;
-    std::queue<T> _data_queue;
+    std::queue<std::shared_ptr<T>> _data_queue;
     std::condition_variable _data_cond;
     bool _close{false};
 };

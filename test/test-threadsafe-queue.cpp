@@ -15,12 +15,60 @@ TEST_CASE("Try pop on an empty queue") {
 }
 
 TEST_CASE("Destroy during waiting") {
-    threadsafe_queue<int> queue_ptr;
+    threadsafe_queue<int> queue;
     auto destruction_thread = std::thread([&]{
         std::this_thread::sleep_for(200ms);
-        queue_ptr.close();
+        queue.close();
     });
-    const auto value = queue_ptr.wait_and_pop();
+    const auto value = queue.wait_and_pop();
     REQUIRE_FALSE(value);
     destruction_thread.join();
+}
+
+TEST_CASE("Push and try pop") {
+    threadsafe_queue<int> queue;
+    const auto test_value = 5;
+    queue.push(test_value);
+    const auto value = queue.try_pop();
+    REQUIRE(value);
+    REQUIRE(test_value == *value);
+}
+
+TEST_CASE("Push and try pop by value") {
+    threadsafe_queue<int> queue;
+    const auto test_value = 5;
+    queue.push(test_value);
+    int value{};
+    REQUIRE(queue.try_pop(value));
+    REQUIRE(test_value == value);
+}
+
+TEST_CASE("Wait and pop and push") {
+    const auto test_value = 5;
+
+    threadsafe_queue<int> queue;
+    auto push_thread = std::thread([&]{
+        std::this_thread::sleep_for(200ms);
+        queue.push(test_value);
+    });
+
+    const auto value = queue.wait_and_pop();
+    REQUIRE(value);
+    REQUIRE(test_value == *value);
+    push_thread.join();
+}
+
+TEST_CASE("Wait and pop and push by value") {
+    const auto test_value = 5;
+
+    threadsafe_queue<int> queue;
+    auto push_thread = std::thread([&]{
+        std::this_thread::sleep_for(200ms);
+        queue.push(test_value);
+    });
+
+    int value{}; ;
+    queue.wait_and_pop(value);
+    REQUIRE(test_value == value);
+    push_thread.join();
 }
