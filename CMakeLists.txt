@@ -10,9 +10,10 @@ add_library (catchMain OBJECT test/catch_main.cpp)
 add_library (lockBasedDataStructures INTERFACE
     include/lock-based/threadsafe_stack.h
     include/lock-based/threadsafe_queue.h
+    include/lock-based/threadsafe_queue2.h
 )
 
-add_executable (test-threadsafe-queue test/test-threadsafe-queue.cpp)
+add_executable (test-threadsafe-queue test/test-threadsafe-queue.cpp test/test-threadsafe-queue2.cpp)
 target_include_directories(test-threadsafe-queue PRIVATE include)
 target_link_libraries (test-threadsafe-queue lockBasedDataStructures catchMain)
 add_test(NAME TestThreadsafeQueue
